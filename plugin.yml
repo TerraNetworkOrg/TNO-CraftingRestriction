@@ -1,0 +1,11 @@
+name: CraftingRestriction
+main: terranetworkorg.CraftingRestriction.CraftingRestriction
+version: 1.0.0
+author: TerraNetworkOrg
+dev-url: http://dev.bukkit.org/server-mods/tno-craftingrestriction/
+depend: [Spout,Vault]
+commands:
+  craftingrestriction:
+    description: Lists plugin details
+    usage: /<command>
+    aliases: [cr,crestrict]
