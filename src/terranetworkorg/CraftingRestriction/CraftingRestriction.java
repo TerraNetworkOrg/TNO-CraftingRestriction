@@ -107,8 +107,8 @@ public class CraftingRestriction extends JavaPlugin {
         	config.setProperty("General.Log.Crafting", true);
         if(config.getString("Restrict.ID") == null)
         	config.setProperty("Restrict.ID", "");
-        if(config.getString("Restrict.ID.271") == null)
-        	config.setProperty("Restrict.ID.271", "craftingrestriction.tool.wood.axe");
+        if(config.getString("Restrict.ID.12345") == null)
+        	config.setProperty("Restrict.ID.12345", "craftingrestriction.tool.example");
         
         config.save();
 
