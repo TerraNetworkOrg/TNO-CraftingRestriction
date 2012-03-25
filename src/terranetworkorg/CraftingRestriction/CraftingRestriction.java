@@ -12,29 +12,23 @@ import net.milkbowl.vault.permission.Permission;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
-import org.bukkit.event.Event;
-import org.bukkit.event.Event.Priority;
-import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.util.config.Configuration;
 
-@SuppressWarnings("deprecation")
 public class CraftingRestriction extends JavaPlugin {
 	
 	public final static Logger log = Logger.getLogger("Minecraft");
-	public static final String logprefix = "[CraftingRestriction 1.0.0]";
-	
-	private final CraftingRestrictionCraftListener craftListener = new CraftingRestrictionCraftListener(this);
+	public static final String logprefix = "[CraftingRestriction 1.2.1]";
 	
 	private final CraftingRestrictionUtility utils = new CraftingRestrictionUtility(this);
 	
-	File configFile;
-	File languageFile;
-	
-	static Configuration config;
-	static Configuration language;
+	private FileConfiguration config = null;
+    private File configFile = null;
+	private FileConfiguration language = null;
+    private File languageFile = null;
 	
 	public static Permission permission = null;
 	public Economy economy = null;
@@ -67,6 +61,7 @@ public class CraftingRestriction extends JavaPlugin {
         return (permission != null);
     }
 	
+	@SuppressWarnings("unused")
 	private void firstTimeCheck() {
         if(!getDataFolder().exists()){
             getDataFolder().mkdirs();
@@ -91,33 +86,96 @@ public class CraftingRestriction extends JavaPlugin {
         }
     }
 	
+	public void reloadConfig() {
+	    if (configFile == null) {
+	    configFile = new File(getDataFolder(), "config.yml");
+	    }
+	    config = YamlConfiguration.loadConfiguration(configFile);
+	 
+	    // Look for defaults in the jar
+	    InputStream defConfigStream = getResource("config.yml");
+	    if (defConfigStream != null) {
+	        YamlConfiguration defConfig = YamlConfiguration.loadConfiguration(defConfigStream);
+	        config.setDefaults(defConfig);
+	    }
+	}
+
+	public FileConfiguration getConfig() {
+	    if (config == null) {
+	        reloadConfig();
+	    }
+	    return config;
+	}
+	
+	public void saveConfig() {
+	    if (config == null || configFile == null) {
+	    return;
+	    }
+	    try {
+	        config.save(configFile);
+	    } catch (IOException ex) {
+	        Logger.getLogger(JavaPlugin.class.getName()).log(Level.SEVERE, "Could not save config to " + configFile, ex);
+	    }
+	}
+	
+	public void reloadLanguage() {
+	    if (languageFile == null) {
+	    	languageFile = new File(getDataFolder(), "language.yml");
+	    }
+	    language = YamlConfiguration.loadConfiguration(languageFile);
+	 
+	    // Look for defaults in the jar
+	    InputStream defConfigStream = getResource("language.yml");
+	    if (defConfigStream != null) {
+	        YamlConfiguration defConfig = YamlConfiguration.loadConfiguration(defConfigStream);
+	        language.setDefaults(defConfig);
+	    }
+	}
+
+	public FileConfiguration getLanguage() {
+	    if (language == null) {
+	        reloadLanguage();
+	    }
+	    return language;
+	}
+	
+	public void saveLanguage() {
+	    if (language == null || languageFile == null) {
+	    return;
+	    }
+	    try {
+	    	language.save(languageFile);
+	    } catch (IOException ex) {
+	        Logger.getLogger(JavaPlugin.class.getName()).log(Level.SEVERE, "Could not save config to " + languageFile, ex);
+	    }
+	}
+	
 	private Boolean loadConfig()
 	{
-		configFile = new File(getDataFolder().getPath()+"/config.yml");
-		languageFile = new File(getDataFolder().getPath()+"/language.yml");
-        firstTimeCheck();
-        config = new Configuration(configFile);
-        config.load();
-        language = new Configuration(languageFile);
-        language.load();
+		reloadConfig();
+		getConfig();
+		reloadLanguage();
+		getLanguage();
 
-        if(config.getString("General.Log") == null)
-        	config.setProperty("General.Log", "");
+		if(config.getString("General.Blacklist") == null)
+        	config.set("General.Blacklist", "13254");
+		if(config.getString("General.Log") == null)
+        	config.set("General.Log", "");
         if(config.getString("General.Log.Crafting") == null)
-        	config.setProperty("General.Log.Crafting", true);
+        	config.set("General.Log.Crafting", true);
         if(config.getString("Restrict.ID") == null)
-        	config.setProperty("Restrict.ID", "");
+        	config.set("Restrict.ID", "");
         if(config.getString("Restrict.ID.12345") == null)
-        	config.setProperty("Restrict.ID.12345", "craftingrestriction.tool.example");
+        	config.set("Restrict.ID.12345", "craftingrestriction.tool.example");
         
-        config.save();
+        saveConfig();
 
         if(language.getString("Messages.ACCESS_DENIED") == null)
-        	language.setProperty("Messages.ACCESS_DENIED", "You do not have permission to use this command.");
+        	language.set("Messages.ACCESS_DENIED", "You do not have permission to use this command.");
         if(language.getString("Messages.CRAFT_DENIED") == null)
-        	language.setProperty("Messages.CRAFT_DENIED", "You are not allowed to craft this Item.");
+        	language.set("Messages.CRAFT_DENIED", "You are not allowed to craft this Item.");
         
-        language.save();
+        saveLanguage();
 		      
 		return true;
 	}
@@ -134,8 +192,7 @@ public class CraftingRestriction extends JavaPlugin {
 	        return;
 	    }
 		
-		PluginManager pm = this.getServer().getPluginManager();
-		pm.registerEvent(Event.Type.CUSTOM_EVENT, craftListener, Priority.Normal, this);
+		getServer().getPluginManager().registerEvents(new CraftingRestrictionCraftListener(this), this);
         LogInfo("successfully linked with Spout.");
 		LogInfo("was successfully initiated.");
 		LogInfo("===========================================================");
@@ -148,25 +205,25 @@ public class CraftingRestriction extends JavaPlugin {
 		
 	}
 	
-	private void showPluginInfo(Player player){
-		player.sendMessage(ChatColor.GREEN + logprefix);
+	private void showPluginInfo(CommandSender sender){
+		sender.sendMessage(ChatColor.GREEN + logprefix);
 	}
 	
-	private void reloadConfigs(Player player){
-		config.load();
-		language.load();
-		player.sendMessage(ChatColor.BLUE+ "Config successfully reloaded.");
+	private void reloadConfigs(CommandSender sender){
+		reloadConfig();
+		reloadLanguage();
+		sender.sendMessage(ChatColor.BLUE+ "Config successfully reloaded.");
 	}
 	
 	public boolean onCommand(CommandSender sender, Command cmd, String commandLabel, String[] args) {
 		
-		final Player player = (Player)sender;
-		
 		if(sender instanceof Player) {
+		
+			final Player player = (Player)sender;
 			
 			if(cmd.getName().equalsIgnoreCase("craftingrestriction")){
 				if(args.length==0){
-                    showPluginInfo(player);
+                    showPluginInfo(sender);
                     return true;
 				}else if(args.length==1){
 					if(args[0].equalsIgnoreCase("reload")){
@@ -193,7 +250,28 @@ public class CraftingRestriction extends JavaPlugin {
 					
 				}
 			}
-		}	
+		}else{
+			if(cmd.getName().equalsIgnoreCase("craftingrestriction")){
+				if(args.length==0){
+	                showPluginInfo(sender);
+	                return true;
+				}else if(args.length==1){
+					if(args[0].equalsIgnoreCase("reload")){						
+						reloadConfigs(sender);
+						return true;
+					} else {						
+						sender.sendMessage(ChatColor.BLUE+"Use a valid parameter: reload");
+						return true;						
+					}
+				}
+				else {
+					
+					sender.sendMessage(ChatColor.BLUE+"Use a valid parameter: reload");
+					return true;
+					
+				}
+			}
+		}
 		return false;		
 	}
 	

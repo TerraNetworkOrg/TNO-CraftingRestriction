@@ -1,8 +1,7 @@
 name: CraftingRestriction
 main: terranetworkorg.CraftingRestriction.CraftingRestriction
-version: 1.0.0
+version: 1.2.1
 author: TerraNetworkOrg
-dev-url: http://dev.bukkit.org/server-mods/tno-craftingrestriction/
 depend: [Spout,Vault]
 commands:
   craftingrestriction:

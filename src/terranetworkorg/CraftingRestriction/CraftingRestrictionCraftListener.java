@@ -1,13 +1,19 @@
 package terranetworkorg.CraftingRestriction;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
 import org.bukkit.ChatColor;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 import org.getspout.spoutapi.event.inventory.InventoryCraftEvent;
-import org.getspout.spoutapi.event.inventory.InventoryListener;
 
-@SuppressWarnings("unused")
-public class CraftingRestrictionCraftListener extends InventoryListener{
+public class CraftingRestrictionCraftListener implements Listener{
 	
 	private CraftingRestriction plugin;
 	
@@ -15,6 +21,7 @@ public class CraftingRestrictionCraftListener extends InventoryListener{
 		this.plugin = plugin;
 	}
 	
+	@EventHandler(priority = EventPriority.NORMAL)
 	public void onInventoryCraft(InventoryCraftEvent event){
 		if (event.isCancelled())
 			return;
@@ -22,14 +29,36 @@ public class CraftingRestrictionCraftListener extends InventoryListener{
 			return;
 		Player player = event.getPlayer();
 		ItemStack itemKey = event.getResult();
-		int itemID = itemKey.getTypeId();
-		String blockString = (new Integer(itemID)).toString().replace("'", "");
-		if (CraftingRestriction.config.getKeys("Restrict.ID").contains(blockString)){
-			if (CraftingRestriction.permission.has(player, CraftingRestriction.config.getString("Restrict.ID." + blockString))){
-				return;
+		
+		if (itemKey == null){
+			return;
+		} else {			
+			int itemID = itemKey.getTypeId();
+			String blockString = (new Integer(itemID)).toString().replace("'", "");
+			ConfigurationSection section = this.plugin.getConfig().getConfigurationSection("Restrict.ID");
+	    	Set<String> allKeys = section.getKeys(false);
+			
+			Set<String> blacklistArray = new HashSet<String>(Arrays.asList(this.plugin.getConfig().getString("General.Blacklist").split(",")));
+			
+			int itemtype = itemKey.getTypeId();
+			if (blacklistArray.contains("" + itemtype)){
+				blockString = (new Integer(itemtype)).toString().replace("'", "");
 			} else{
-				player.sendMessage(ChatColor.RED + CraftingRestriction.language.getString("Messages.CRAFT_DENIED"));
-				event.setCancelled(true);
+				int itemdamage = itemKey.getDurability();
+				if(itemdamage == 0){
+					blockString = (new Integer(itemtype)).toString().replace("'", "");
+				} else{
+					blockString = (new Integer(itemtype)).toString().replace("'", "") + ":" + (new Integer(itemdamage)).toString().replace("'", "");
+				}				
+			}
+	    	
+			if(allKeys.contains(blockString)){
+				if (CraftingRestriction.permission.has(player, this.plugin.getConfig().getString("Restrict.ID." + blockString))){
+					return;
+				} else{
+					player.sendMessage(ChatColor.RED + this.plugin.getLanguage().getString("Messages.CRAFT_DENIED"));
+					event.setCancelled(true);
+				}
 			}
 		}
 	}
